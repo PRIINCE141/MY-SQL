@@ -1,0 +1,236 @@
+--''' 🎵 SPOTIFY DATABASE SQL PROJECT
+-- Author:PRINCE KASHAV
+-- DATABASE CREATION & SETUP
+-- ==========================================================
+
+-- Drop the database if it exists
+DROP DATABASE IF EXISTS "SPOTIFY_db";
+
+-- Create a new database
+CREATE DATABASE "SPOTIFY_db";
+
+-- Connect to the database (for PostgreSQL use: \c SPOTIFY_db)
+
+-- Drop the existing table if it exists
+DROP TABLE IF EXISTS spotify;
+
+-- Create the Spotify table
+CREATE TABLE spotify (
+    artist VARCHAR(255),
+    track VARCHAR(255),
+    album VARCHAR(255),
+    album_type VARCHAR(255),
+    danceability FLOAT,
+    energy FLOAT,
+    loudness FLOAT,
+    speechiness FLOAT,
+    acousticness FLOAT,
+    instrumentalness FLOAT,
+    liveness FLOAT,
+    valence FLOAT,
+    tempo FLOAT,
+    duration_min FLOAT,
+    title VARCHAR(255),
+    channel VARCHAR(255),
+    views FLOAT,
+    likes BIGINT,
+    comments BIGINT,
+    licensed BOOLEAN,
+    official_video BOOLEAN,
+    stream BIGINT,
+    energy_liveness FLOAT,
+    most_playedon VARCHAR(255)
+);
+
+-- ==========================================================
+-- DATA EXPLORATION AND CLEANING
+-- ==========================================================
+
+-- Q1️⃣: Find the total number of rows in the table
+SELECT COUNT(*) AS total_rows FROM spotify;
+
+-- Q2️⃣: Find the total number of unique artists
+SELECT COUNT(DISTINCT artist) AS total_artists FROM spotify;
+
+-- Q3️⃣: Find the total number of unique albums
+SELECT COUNT(DISTINCT album) AS total_albums FROM spotify;
+
+-- Q4️⃣: Find the total number of album types
+SELECT COUNT(DISTINCT album_type) AS total_album_types FROM spotify;
+
+-- Q5️⃣: Find the maximum duration of a track
+SELECT MAX(duration_min) AS max_duration_min FROM spotify;
+
+-- Q6️⃣: Find the minimum duration of a track
+SELECT MIN(duration_min) AS min_duration_min FROM spotify;
+
+-- Q7️⃣: Identify tracks that have duration = 0
+SELECT * FROM spotify WHERE duration_min = 0;
+
+-- Q8️⃣: Delete tracks that have duration = 0
+DELETE FROM spotify WHERE duration_min = 0;
+
+-- Verify updated row count after cleaning
+SELECT COUNT(*) AS total_rows_after_cleaning FROM spotify;
+
+-- ==========================================================
+-- BUSINESS PROBLEMS & ANALYTICS
+-- ==========================================================
+
+-- Q9️⃣: Retrieve the names of all tracks that have more than 1 billion streams
+SELECT track, stream
+FROM spotify
+WHERE stream > 1000000000
+ORDER BY stream DESC
+LIMIT 10;
+
+-- Q🔟: List the top 10 albums with the highest total streams
+SELECT 
+    album,
+    SUM(stream) AS total_streams,
+    STRING_AGG(DISTINCT artist, ', ') AS artists
+FROM spotify
+GROUP BY album
+ORDER BY total_streams DESC
+LIMIT 10;
+
+-- Q11️⃣: Get the total number of comments for licensed tracks
+SELECT SUM(comments) AS total_comments_licensed_tracks
+FROM spotify
+WHERE licensed = TRUE;
+
+-- Q12️⃣: Find all tracks that belong to album type 'single'
+SELECT COUNT(DISTINCT track) AS total_tracks_in_single_album
+FROM spotify
+WHERE album_type = 'single';
+
+-- Q13️⃣: Count the number of tracks by each artist
+SELECT artist, COUNT(DISTINCT track) AS total_tracks
+FROM spotify
+GROUP BY artist
+ORDER BY total_tracks DESC;
+
+-- ==========================================================
+-- MEDIUM-LEVEL ANALYTICAL QUERIES
+-- ==========================================================
+
+-- Q14️⃣: Calculate the average danceability of tracks in each album
+SELECT 
+    album,
+    STRING_AGG(DISTINCT track, ', ') AS tracks_present,
+    AVG(danceability) AS avg_danceability
+FROM spotify
+GROUP BY album
+ORDER BY avg_danceability DESC
+LIMIT 10;
+
+-- Q15️⃣: Find the top 10 tracks with the highest energy levels
+SELECT track, energy
+FROM spotify
+ORDER BY energy DESC
+LIMIT 10;
+
+-- Q16️⃣: List the top 10 official videos by total views and likes
+SELECT 
+    track,
+    SUM(views) AS total_views,
+    SUM(likes) AS total_likes
+FROM spotify
+WHERE official_video = TRUE
+GROUP BY track
+ORDER BY total_views DESC
+LIMIT 10;
+
+-- Q17️⃣: Find the top 10 albums based on total views of all their tracks
+SELECT 
+    album,
+    STRING_AGG(DISTINCT track, ', ') AS tracks,
+    SUM(views) AS total_views
+FROM spotify
+GROUP BY album
+ORDER BY total_views DESC
+LIMIT 10;
+
+-- Q18️⃣: Retrieve tracks that have more streams on YouTube than Spotify
+SELECT
+    track,
+    SUM(CASE WHEN most_playedon = 'Youtube' THEN stream END) AS streamed_on_youtube,
+    SUM(CASE WHEN most_playedon = 'Spotify' THEN stream END) AS streamed_on_spotify
+FROM spotify
+GROUP BY track
+HAVING 
+    SUM(CASE WHEN most_playedon = 'Youtube' THEN stream END) >
+    SUM(CASE WHEN most_playedon = 'Spotify' THEN stream END)
+    AND SUM(CASE WHEN most_playedon = 'Spotify' THEN stream END) IS NOT NULL;
+
+-- Q19️⃣: Find the top 3 most viewed tracks for each artist using a window function
+WITH ranked AS (
+    SELECT 
+        artist,
+        track,
+        SUM(views) AS total_views,
+        ROW_NUMBER() OVER (PARTITION BY artist ORDER BY SUM(views) DESC) AS row_num
+    FROM spotify
+    GROUP BY artist, track
+)
+SELECT artist, track, total_views
+FROM ranked
+WHERE row_num <= 3
+ORDER BY artist, row_num;
+
+-- ==========================================================
+-- ADVANCED ANALYTICAL QUERIES
+-- ==========================================================
+
+-- Q20️⃣: Find tracks where the liveness score is above the average
+WITH avg_live AS (
+    SELECT AVG(liveness) AS avg_liveness FROM spotify
+)
+SELECT track, artist, liveness
+FROM spotify, avg_live
+WHERE liveness > avg_liveness
+ORDER BY liveness DESC;
+
+-- Alternate simpler method:
+SELECT artist, track, liveness
+FROM spotify
+WHERE liveness > (SELECT AVG(liveness) FROM spotify)
+ORDER BY liveness DESC;
+
+-- Q21️⃣: Calculate the difference between the highest and lowest energy levels per album
+WITH energy_cte AS (
+    SELECT 
+        album,
+        MAX(energy) AS max_energy_level,
+        MIN(energy) AS min_energy_level
+    FROM spotify
+    GROUP BY album
+)
+SELECT 
+    album,
+    max_energy_level - min_energy_level AS energy_difference
+FROM energy_cte
+ORDER BY energy_difference DESC
+LIMIT 10;
+
+--Q3: Find tracks where the energy-to-liveness ratio is greater than 1.2.
+select track , energy / liveness as ratio from spotify 
+where  energy / liveness  > 1.2 
+order by  energy / liveness  desc
+--Method 2
+with cte as (
+select track , energy / liveness as ratio from spotify 
+where  energy / liveness  > 1.2 )
+select track , ratio from cte 
+where ratio > 1.2  
+order by ratio desc
+
+
+--Q4:Calculate the cumulative sum of likes for tracks ordered by the number of views, using window functions.
+
+SELECT 
+    track, 
+    views, 
+    likes, 
+    SUM(likes) OVER (ORDER BY views desc) AS cumulative_likes
+FROM spotify;
