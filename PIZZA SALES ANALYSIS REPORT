@@ -1,0 +1,122 @@
+------------------------------------------------------------
+# 🍕 PIZZA SALES REPORT – SQL ANALYSIS
+------------------------------------------------------------
+
+-- View the dataset
+SELECT * FROM pizza_sales;
+
+------------------------------------------------------------
+## ✅ KEY PERFORMANCE INDICATORS (KPIs)
+------------------------------------------------------------
+
+# 1️⃣ Total Revenue from Pizza Sales
+SELECT SUM(total_price) AS total_revenue
+FROM pizza_sales;
+
+# 2️⃣ Average Order Value
+SELECT SUM(total_price) / COUNT(DISTINCT order_id) AS avg_order_value
+FROM pizza_sales;
+
+# 3️⃣ Total Pizzas Sold
+SELECT SUM(quantity) AS total_pizzas_sold
+FROM pizza_sales;
+
+# 4️⃣ Total Number of Pizza Orders
+SELECT COUNT(DISTINCT order_id) AS total_orders
+FROM pizza_sales;
+
+# 5️⃣ Average Pizzas Per Order
+SELECT 
+    CAST(
+        CAST(SUM(quantity) AS DECIMAL(10,2)) / 
+        CAST(COUNT(DISTINCT order_id) AS DECIMAL(10,2)) 
+    AS DECIMAL(10,2)
+) AS avg_pizza_per_order
+FROM pizza_sales;
+
+------------------------------------------------------------
+## 📊 SALES TRENDS & CHART ANALYSIS
+------------------------------------------------------------
+
+# 🔹 Daily Trend of Orders Over the Week
+SELECT 
+    DATENAME(WEEKDAY, order_date) AS order_day,
+    COUNT(DISTINCT order_id) AS total_orders
+FROM pizza_sales
+GROUP BY DATENAME(WEEKDAY, order_date),
+         DATEPART(WEEKDAY, order_date)
+ORDER BY DATEPART(WEEKDAY, order_date);
+
+# 🔹 Monthly Trend of Orders
+SELECT 
+    DATENAME(MONTH, order_date) AS month_name,
+    COUNT(DISTINCT order_id) AS total_orders
+FROM pizza_sales
+GROUP BY DATENAME(MONTH, order_date),
+         DATEPART(MONTH, order_date)
+ORDER BY DATEPART(MONTH, order_date);
+
+------------------------------------------------------------
+## 🍕 SALES PERCENTAGE ANALYSIS
+------------------------------------------------------------
+
+# 🔸 % Sales by Pizza Category (Overall)
+SELECT 
+    pizza_category,
+    CAST(SUM(total_price) AS DECIMAL(10,2)) AS total_sales,
+    CAST(
+        SUM(total_price) * 100.0 / (SELECT SUM(total_price) FROM pizza_sales) 
+    AS DECIMAL(10,2)) AS sales_percentage
+FROM pizza_sales
+GROUP BY pizza_category;
+
+# 🔸 % Sales by Pizza Category (For a Particular Month - Example: January)
+SELECT 
+    pizza_category,
+    CAST(SUM(total_price) AS DECIMAL(10,2)) AS total_sales,
+    CAST(
+        SUM(total_price) * 100.0 / 
+        (SELECT SUM(total_price) FROM pizza_sales WHERE MONTH(order_date) = 1) 
+    AS DECIMAL(10,2)) AS sales_percentage
+FROM pizza_sales
+WHERE MONTH(order_date) = 1
+GROUP BY pizza_category;
+
+------------------------------------------------------------
+## 🧱 PIZZA SIZE SALES ANALYSIS
+------------------------------------------------------------
+
+# 🍕 Sales % by Pizza Size
+SELECT 
+    pizza_size,
+    SUM(quantity) AS total_pizzas_sold,
+    CAST(
+        SUM(quantity) * 100.0 / (SELECT SUM(quantity) FROM pizza_sales) 
+    AS DECIMAL(10,2)) AS sales_percentage
+FROM pizza_sales
+GROUP BY pizza_size
+ORDER BY total_pizzas_sold DESC;
+
+------------------------------------------------------------
+## 🏆 BEST & WORST SELLING PIZZAS
+------------------------------------------------------------
+
+# ⭐ Top 5 Best-Selling Pizzas (by Revenue, Orders, Quantity)
+SELECT TOP 5 
+    pizza_name_id,
+    SUM(quantity) AS total_pizzas_sold,
+    COUNT(DISTINCT order_id) AS total_orders,
+    SUM(total_price) AS total_revenue
+FROM pizza_sales
+GROUP BY pizza_name_id
+ORDER BY total_revenue DESC;
+
+# ❌ Bottom 5 Worst-Selling Pizzas (by Revenue, Orders, Quantity)
+SELECT TOP 5 
+    pizza_name_id,
+    SUM(quantity) AS total_pizzas_sold,
+    COUNT(DISTINCT order_id) AS total_orders,
+    CAST(SUM(total_price) AS DECIMAL(10,2)) AS total_revenue
+FROM pizza_sales
+GROUP BY pizza_name_id
+ORDER BY total_revenue ASC;
